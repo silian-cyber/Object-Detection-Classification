@@ -1,0 +1,377 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>包装OK/NG智能检测系统</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdn.jsdelivr.net/npm/font-awesome@4.7.0/css/font-awesome.min.css" rel="stylesheet">
+
+    <!-- 配置Tailwind -->
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#4CAF50',
+                        secondary: '#2196F3',
+                        danger: '#f44336',
+                        success: '#4cd137',
+                        warning: '#ff9f1c',
+                        info: '#007ACC',
+                        light: '#f9f9f9',
+                        dark: '#333'
+                    },
+                    fontFamily: {
+                        sans: ['SimHei', 'WenQuanYi Micro Hei', 'Heiti TC', 'sans-serif']
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style type="text/tailwindcss">
+        @layer utilities {
+            .content-auto {
+                content-visibility: auto;
+            }
+            .card-shadow {
+                box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+            }
+            .transition-custom {
+                transition: all 0.3s ease;
+            }
+        }
+    </style>
+</head>
+<body class="bg-gray-50 min-h-screen flex flex-col">
+    <!-- 导航栏 -->
+    <nav class="bg-white shadow-sm sticky top-0 z-50">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between h-16">
+                <div class="flex items-center">
+                    <i class="fa fa-industry text-primary text-2xl mr-3"></i>
+                    <span class="font-bold text-xl text-dark">包装OK/NG智能检测系统</span>
+                </div>
+                <div class="flex items-center">
+                    <span id="model-status" class="px-3 py-1 rounded-md text-sm font-medium bg-green-100 text-green-800">
+                        <i class="fa fa-check-circle"></i> 模型已加载
+                    </span>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- 主内容区 -->
+    <main class="flex-grow max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6">
+        <!-- 上传区域 -->
+        <div class="bg-white rounded-lg shadow-md p-6 mb-6 card-shadow">
+            <h2 class="text-xl font-bold text-dark mb-4">图像上传</h2>
+            <div class="flex flex-col md:flex-row gap-6">
+                <div class="w-full md:w-1/2">
+                    <form id="upload-form" method="POST" enctype="multipart/form-data" class="space-y-4">
+                        <div class="relative">
+                            <input type="file" id="file-upload" name="file" class="hidden" accept="image/*">
+                            <label for="file-upload" class="flex items-center justify-center w-full px-4 py-3 bg-primary text-white rounded-lg cursor-pointer hover:bg-primary/90 transition-custom">
+                                <i class="fa fa-upload mr-2"></i> 选择包装图片
+                            </label>
+                        </div>
+                        <button type="submit" id="submit-btn" class="w-full px-4 py-3 bg-secondary text-white rounded-lg hover:bg-secondary/90 transition-custom flex items-center justify-center">
+                            <i class="fa fa-search mr-2"></i> 开始检测
+                        </button>
+                        <button type="button" id="clear-btn" class="w-full px-4 py-3 bg-gray-200 text-dark rounded-lg hover:bg-gray-300 transition-custom flex items-center justify-center">
+                            <i class="fa fa-refresh mr-2"></i> 清除
+                        </button>
+                    </form>
+                </div>
+                <div class="w-full md:w-1/2 flex flex-col">
+                    <h3 class="font-semibold text-dark mb-2">文件信息</h3>
+                    <div id="file-info" class="flex-grow p-4 border border-gray-200 rounded-lg bg-light flex items-center justify-center">
+                        <p class="text-gray-500">未选择文件</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 结果展示区域 -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+            <!-- 原始图像 -->
+            <div class="bg-white rounded-lg shadow-md p-6 card-shadow">
+                <h2 class="text-xl font-bold text-dark mb-4 flex items-center">
+                    <i class="fa fa-image text-info mr-2"></i> 原始图像
+                </h2>
+                <div id="original-image-container" class="border border-gray-200 rounded-lg p-2 h-80 flex items-center justify-center bg-light">
+                    <p class="text-gray-500">请上传图像</p>
+                </div>
+            </div>
+
+            <!-- 检测结果 -->
+            <div class="bg-white rounded-lg shadow-md p-6 card-shadow">
+                <h2 class="text-xl font-bold text-dark mb-4 flex items-center">
+                    <i class="fa fa-bar-chart text-info mr-2"></i> 检测结果
+                </h2>
+                <div id="result-container" class="border border-gray-200 rounded-lg p-2 h-80 flex items-center justify-center bg-light">
+                    <p class="text-gray-500">检测结果将显示在这里</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- 详细结果 -->
+        <div class="bg-white rounded-lg shadow-md p-6 card-shadow mb-6">
+            <h2 class="text-xl font-bold text-dark mb-4 flex items-center">
+                <i class="fa fa-info-circle text-info mr-2"></i> 详细信息
+            </h2>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div id="result-info" class="p-4 bg-light rounded-lg border border-gray-200">
+                    <h3 class="font-semibold text-dark mb-2">检测结果</h3>
+                    <p id="result-text" class="text-xl text-gray-700">未进行检测</p>
+                </div>
+                <div class="grid grid-cols-1 gap-4">
+                    <div class="p-4 bg-light rounded-lg border border-gray-200">
+                        <h3 class="font-semibold text-dark mb-2">NG概率</h3>
+                        <p id="ng-prob" class="text-xl text-gray-700">--</p>
+                    </div>
+                    <div class="p-4 bg-light rounded-lg border border-gray-200">
+                        <h3 class="font-semibold text-dark mb-2">OK概率</h3>
+                        <p id="ok-prob" class="text-xl text-gray-700">--</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 日志区域 -->
+        <div class="bg-white rounded-lg shadow-md p-6 card-shadow">
+            <h2 class="text-xl font-bold text-dark mb-4 flex items-center">
+                <i class="fa fa-history text-info mr-2"></i> 操作日志
+            </h2>
+            <div id="log-container" class="h-40 overflow-y-auto bg-gray-50 p-4 rounded-lg border border-gray-200 font-mono text-sm">
+                <p class="text-gray-500">系统已启动，等待上传图像...</p>
+            </div>
+        </div>
+    </main>
+
+    <!-- 页脚 -->
+    <footer class="bg-white border-t border-gray-200 py-4">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <p class="text-center text-gray-500 text-sm">
+                &copy; 2025 包装OK/NG智能检测系统 | 使用 <i class="fa fa-heart text-danger"></i> 开发
+            </p>
+        </div>
+    </footer>
+
+    <!-- JavaScript -->
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const fileUpload = document.getElementById('file-upload');
+            const uploadForm = document.getElementById('upload-form');
+            const fileInfo = document.getElementById('file-info');
+            const clearBtn = document.getElementById('clear-btn');
+            const originalImageContainer = document.getElementById('original-image-container');
+            const resultContainer = document.getElementById('result-container');
+            const resultText = document.getElementById('result-text');
+            const ngProb = document.getElementById('ng-prob');
+            const okProb = document.getElementById('ok-prob');
+            const logContainer = document.getElementById('log-container');
+            const submitBtn = document.getElementById('submit-btn');
+            const modelStatus = document.getElementById('model-status');
+
+            let currentImageUrl = null;
+
+            // 文件选择处理
+            fileUpload.addEventListener('change', function() {
+                if (this.files && this.files[0]) {
+                    const file = this.files[0];
+                    logMessage(`已选择文件: ${file.name}`);
+
+                    // 更新文件信息
+                    fileInfo.innerHTML = `
+                        <div class="space-y-2">
+                            <p class="font-medium">${file.name}</p>
+                            <p class="text-sm text-gray-500">
+                                <i class="fa fa-file-image-o mr-1"></i> ${formatFileSize(file.size)}
+                            </p>
+                        </div>
+                    `;
+
+                    // 预览图像
+                    const reader = new FileReader();
+                    reader.onload = function(e) {
+                        originalImageContainer.innerHTML = `
+                            <img src="${e.target.result}" alt="原始图像" class="max-h-full max-w-full object-contain">
+                        `;
+                        currentImageUrl = e.target.result;
+                    }
+                    reader.readAsDataURL(file);
+
+                    // 重置结果区域
+                    resetResultArea();
+                }
+            });
+
+            // 表单提交处理
+            uploadForm.addEventListener('submit', function(e) {
+                e.preventDefault();
+
+                if (!fileUpload.files || !fileUpload.files[0]) {
+                    showToast('请先选择图片', 'warning');
+                    return;
+                }
+
+                // 禁用按钮
+                submitBtn.disabled = true;
+                submitBtn.innerHTML = '<i class="fa fa-spinner fa-spin mr-2"></i> 检测中...';
+                modelStatus.className = 'px-3 py-1 rounded-md text-sm font-medium bg-blue-100 text-blue-800';
+                modelStatus.innerHTML = '<i class="fa fa-spinner fa-spin"></i> 检测中...';
+
+                // 准备表单数据
+                const formData = new FormData();
+                formData.append('file', fileUpload.files[0]);
+
+                // 发送请求
+                fetch('/upload', {
+                    method: 'POST',
+                    body: formData
+                })
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error(response.statusText);
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    if (data.success) {
+                        logMessage(`检测完成: ${data.result.pred_class}, 置信度: ${data.result.confidence.toFixed(2)}`);
+
+                        // 更新结果区域
+                        resultText.textContent = `检测结果: ${data.result.pred_class}, 置信度: ${data.result.confidence.toFixed(2)}`;
+
+                        // 设置结果颜色
+                        if (data.result.pred_class === 'NG') {
+                            resultText.className = 'text-xl text-danger font-bold';
+                        } else {
+                            resultText.className = 'text-xl text-success font-bold';
+                        }
+
+                        // 更新概率
+                        ngProb.textContent = `NG概率: ${data.result.ng_prob.toFixed(4)}`;
+                        okProb.textContent = `OK概率: ${data.result.ok_prob.toFixed(4)}`;
+
+                        // 显示概率图
+                        resultContainer.innerHTML = `
+                            <img src="data:image/png;base64,${data.result.prob_plot}" alt="概率分布图" class="max-h-full max-w-full object-contain">
+                        `;
+
+                        showToast(`检测完成: ${data.result.pred_class}`, 'success');
+                    } else {
+                        throw new Error(data.error || '处理图像时出错');
+                    }
+                })
+                .catch(error => {
+                    logMessage(`检测错误: ${error.message}`);
+                    showToast(`检测错误: ${error.message}`, 'error');
+                })
+                .finally(() => {
+                    // 启用按钮
+                    submitBtn.disabled = false;
+                    submitBtn.innerHTML = '<i class="fa fa-search mr-2"></i> 开始检测';
+                    modelStatus.className = 'px-3 py-1 rounded-md text-sm font-medium bg-green-100 text-green-800';
+                    modelStatus.innerHTML = '<i class="fa fa-check-circle"></i> 模型已加载';
+                });
+            });
+
+            // 清除按钮处理
+            clearBtn.addEventListener('click', function() {
+                fileUpload.value = '';
+                fileInfo.innerHTML = '<p class="text-gray-500">未选择文件</p>';
+                originalImageContainer.innerHTML = '<p class="text-gray-500">请上传图像</p>';
+                resetResultArea();
+                currentImageUrl = null;
+                logMessage('已清除所有内容');
+            });
+
+            // 重置结果区域
+            function resetResultArea() {
+                resultContainer.innerHTML = '<p class="text-gray-500">检测结果将显示在这里</p>';
+                resultText.textContent = '未进行检测';
+                resultText.className = 'text-xl text-gray-700';
+                ngProb.textContent = '--';
+                okProb.textContent = '--';
+            }
+
+            // 日志记录
+            function logMessage(message) {
+                const timestamp = new Date().toLocaleTimeString();
+                const logEntry = document.createElement('p');
+                logEntry.className = 'mb-1';
+                logEntry.innerHTML = `<span class="text-gray-400">${timestamp}</span> ${message}`;
+                logContainer.appendChild(logEntry);
+                logContainer.scrollTop = logContainer.scrollHeight;
+            }
+
+            // 显示提示框
+            function showToast(message, type) {
+                // 创建提示框元素
+                const toast = document.createElement('div');
+
+                // 设置样式和内容
+                let bgColor, textColor, icon;
+                switch(type) {
+                    case 'success':
+                        bgColor = 'bg-success';
+                        textColor = 'text-white';
+                        icon = 'fa-check-circle';
+                        break;
+                    case 'error':
+                        bgColor = 'bg-danger';
+                        textColor = 'text-white';
+                        icon = 'fa-exclamation-circle';
+                        break;
+                    case 'warning':
+                        bgColor = 'bg-warning';
+                        textColor = 'text-dark';
+                        icon = 'fa-exclamation-triangle';
+                        break;
+                    default:
+                        bgColor = 'bg-info';
+                        textColor = 'text-white';
+                        icon = 'fa-info-circle';
+                }
+
+                toast.className = `${bgColor} ${textColor} px-4 py-3 rounded-lg shadow-lg fixed bottom-4 right-4 z-50 flex items-center transform transition-all duration-300 translate-y-20 opacity-0`;
+                toast.innerHTML = `
+                    <i class="fa ${icon} mr-2"></i>
+                    <span>${message}</span>
+                `;
+
+                // 添加到页面
+                document.body.appendChild(toast);
+
+                // 显示动画
+                setTimeout(() => {
+                    toast.classList.remove('translate-y-20', 'opacity-0');
+                }, 10);
+
+                // 自动关闭
+                setTimeout(() => {
+                    toast.classList.add('translate-y-20', 'opacity-0');
+                    setTimeout(() => {
+                        document.body.removeChild(toast);
+                    }, 300);
+                }, 3000);
+            }
+
+            // 格式化文件大小
+            function formatFileSize(bytes) {
+                if (bytes === 0) return '0 Bytes';
+                const k = 1024;
+                const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+                const i = Math.floor(Math.log(bytes) / Math.log(k));
+                return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+            }
+
+            // 初始日志
+            logMessage('系统已启动，等待上传图像...');
+        });
+    </script>
+</body>
+</html>
